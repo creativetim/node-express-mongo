@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const exphbs = require('express-handlebars');
 const methodOverride = require('method-override');
 const bodyParser = require('body-parser');
@@ -17,9 +18,6 @@ mongoose
     .then(() => console.log('MongoDB connected.'))
     .catch(err => console.error(err));
 
-require('./models/Idea');
-const Idea = mongoose.model('ideas');
-
 
 // Middleware
 app.engine('handlebars', exphbs({
@@ -33,6 +31,7 @@ app.set('views', './src/views');
 app.use(bodyParser.urlencoded({
     extended: false,
 }));
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json());
 app.use(methodOverride('_method'));
 app.use(cookieParser('rouge-uh-douge'));
@@ -57,80 +56,13 @@ app.get('/about',(req, res) => {
     res.render('about');
 });
 
-app.get('/ideas', (req, res) => {
-    Idea.find({})
-        .sort({ date: 'desc' })
-        .then(ideas => res.render('ideas/index', {
-            ideas,
-        }));
-});
 
-app.post('/ideas', (req, res) => {
-    let errors = [];
+// Routes
+const ideasRoutes = require('./routes/ideas');
+const usersRoutes = require('./routes/users');
 
-    if (!req.body.title) {
-        errors.push({ text: 'Please add a title' });
-    }
-
-    if (!req.body.details) {
-        errors.push({ text: 'Please add some details' });
-    }
-
-    if (errors.length) {
-        res.render('ideas/add', {
-            errors,
-            title: req.body.title,
-            details: req.body.details,
-        });
-    } else {
-        const newUser = {
-            details: req.body.details,
-            title: req.body.title,
-        };
-
-        new Idea(newUser)
-            .save()
-            .then(idea => {
-                req.flash('success', 'Video Idea was added');
-                res.redirect('/ideas');
-            });
-    }
-});
-
-app.put('/ideas/:id', (req, res) => {
-    Idea.findOne({ _id: req.params.id })
-        .then(idea => {
-            idea.title = req.body.title;
-            idea.details = req.body.details;
-
-            idea.save()
-                .then(idea => {
-                    req.flash('success', 'Video Idea was edited');
-                    res.redirect('/ideas');
-                });
-        })
-});
-
-app.delete('/ideas/:id', (req, res) => {
-    Idea.remove({ _id: req.params.id })
-        .then(() => {
-            req.flash('error', 'Video Idea was deleted');
-            res.redirect('/ideas');
-        });
-});
-
-app.get('/ideas/add', (req, res) => {
-    res.render('ideas/add');
-});
-
-app.get('/ideas/edit/:id', (req, res) => {
-    Idea.findOne({ _id: req.params.id })
-        .then(idea => {
-            res.render('ideas/edit', {
-                idea,
-            });
-        });
-});
+app.use('/ideas', ideasRoutes);
+app.use('/users', usersRoutes);
 
 
 // Start server
