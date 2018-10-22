@@ -6,8 +6,10 @@ const { ensureAuthenticated } = require('../helpers/auth');
 require('../models/Idea');
 const Idea = mongoose.model('ideas');
 
-router.get('/', (req, res) => {
-    Idea.find({})
+router.get('/', ensureAuthenticated, (req, res) => {
+    Idea.find({
+        user: req.user.id,
+    })
         .sort({ date: 'desc' })
         .then(ideas => res.render('ideas/index', {
             ideas,
@@ -35,6 +37,7 @@ router.post('/', ensureAuthenticated, (req, res) => {
         const newUser = {
             details: req.body.details,
             title: req.body.title,
+            user: req.user.id,
         };
 
         new Idea(newUser)
@@ -49,22 +52,40 @@ router.post('/', ensureAuthenticated, (req, res) => {
 router.put('/:id', ensureAuthenticated, (req, res) => {
     Idea.findOne({ _id: req.params.id })
         .then(idea => {
-            idea.title = req.body.title;
-            idea.details = req.body.details;
+            if (idea.user !== req.user.id) {
+                req.flash('error', 'Not authorized');
+                res.redirect('/ideas');
+            } else {
+                idea.title = req.body.title;
+                idea.details = req.body.details;
 
-            idea.save()
-                .then(idea => {
-                    req.flash('success', 'Video Idea was edited');
-                    res.redirect('/ideas');
-                });
+                idea.save()
+                    .then(idea => {
+                        req.flash('success', 'Video Idea was edited');
+                        res.redirect('/ideas');
+                    });
+            }
         })
 });
 
 router.delete('/:id', ensureAuthenticated, (req, res) => {
-    Idea.remove({ _id: req.params.id })
-        .then(() => {
-            req.flash('error', 'Video Idea was deleted');
-            res.redirect('/ideas');
+    Idea.findOne({ _id: req.params.id })
+        .then(idea => {
+            if (idea.user !== req.user.id) {
+                req.flash('error', 'You are not authorized');
+                res.redirect('/');
+            }
+
+            if (idea) {
+                Idea.remove({ _id: req.params.id })
+                    .then(() => {
+                        req.flash('error', 'Video Idea was deleted');
+                        res.redirect('/ideas');
+                    })
+            } else {
+                req.flash('error', 'Video could not be deleted');
+                res.redirect('/ideas');
+            }
         });
 });
 
@@ -75,11 +96,18 @@ router.get('/add', ensureAuthenticated, (req, res) => {
 router.get('/edit/:id', ensureAuthenticated, (req, res) => {
     Idea.findOne({ _id: req.params.id })
         .then(idea => {
-            res.render('ideas/edit', {
-                idea,
-            });
+            if (idea.user !== req.user.id) {
+                req.flash('error', 'You are not authorized');
+                res.redirect('/ideas');
+            }
+
+            if (idea) {
+                res.render('ideas/edit', { idea });
+            } else {
+                req.flash('error', 'Video could not be edited');
+                res.redirect('/ideas');
+            }
         });
 });
-
 
 module.exports = router;
