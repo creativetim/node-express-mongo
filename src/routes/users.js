@@ -2,13 +2,27 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const mongoose = require('mongoose');
-//const passport = require('passport');
+const passport = require('passport');
 
 require('../models/User');
 const User = mongoose.model('users');
 
 router.get('/login', (req, res) => {
     res.render('users/login');
+});
+
+router.post('/login', (req, res, next) => {
+    passport.authenticate('local', {
+        successRedirect: '/ideas',
+        failureRedirect: '/users/login',
+        failureFlash: true,
+    })(req, res, next);
+});
+
+router.get('/logout', (req, res) => {
+    req.logout();
+    req.flash('success', 'You have logged out');
+    res.redirect('/');
 });
 
 router.get('/register', (req, res) => {
@@ -34,23 +48,30 @@ router.post('/register', (req, res) => {
     } else {
         const newUser = { name, email, password };
 
-        bcrypt.genSalt(10, (err, salt) => {
-            bcrypt.hash(newUser.password, salt, (err, hash) => {
-                if (err) throw err;
+        User.findOne({ email }).then(user => {
+            if (user) {
+                req.flash('error', 'Email is not available for registration');
+                res.redirect('/');
+            } else {
+                bcrypt.genSalt(10, (err, salt) => {
+                    bcrypt.hash(newUser.password, salt, (err, hash) => {
+                        if (err) throw err;
 
-                newUser.password = hash;
-                new User(newUser)
-                    .save()
-                    .then(() => {
-                        req.flash('success', 'Created new user');
-                        res.redirect('/ideas');
-                    })
-                    .catch(err => {
-                        req.flash('error', 'There was a problem creating the user');
-                        console.error(err);
-                        res.redirect('/');
+                        newUser.password = hash;
+                        new User(newUser)
+                            .save()
+                            .then(() => {
+                                req.flash('success', `Welcome, ${newUser.name}!`);
+                                res.redirect('/ideas');
+                            })
+                            .catch(err => {
+                                req.flash('error', 'There was a problem creating the user');
+                                console.error(err);
+                                res.redirect('/');
+                            });
                     });
-            });
+                });
+            }
         });
     }
 });

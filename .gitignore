@@ -3,3 +3,5 @@
 mongo-4.0.3/*
 project-files/*
 node_modules/*
+data/*
+log/*

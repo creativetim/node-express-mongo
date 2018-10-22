@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const { ensureAuthenticated } = require('../helpers/auth');
 
 require('../models/Idea');
 const Idea = mongoose.model('ideas');
@@ -13,7 +14,7 @@ router.get('/', (req, res) => {
         }));
 });
 
-router.post('/', (req, res) => {
+router.post('/', ensureAuthenticated, (req, res) => {
     let errors = [];
 
     if (!req.body.title) {
@@ -45,7 +46,7 @@ router.post('/', (req, res) => {
     }
 });
 
-router.put('/:id', (req, res) => {
+router.put('/:id', ensureAuthenticated, (req, res) => {
     Idea.findOne({ _id: req.params.id })
         .then(idea => {
             idea.title = req.body.title;
@@ -59,7 +60,7 @@ router.put('/:id', (req, res) => {
         })
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', ensureAuthenticated, (req, res) => {
     Idea.remove({ _id: req.params.id })
         .then(() => {
             req.flash('error', 'Video Idea was deleted');
@@ -67,11 +68,11 @@ router.delete('/:id', (req, res) => {
         });
 });
 
-router.get('/add', (req, res) => {
+router.get('/add', ensureAuthenticated, (req, res) => {
     res.render('ideas/add');
 });
 
-router.get('/edit/:id', (req, res) => {
+router.get('/edit/:id', ensureAuthenticated, (req, res) => {
     Idea.findOne({ _id: req.params.id })
         .then(idea => {
             res.render('ideas/edit', {
